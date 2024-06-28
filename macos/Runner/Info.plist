@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Your voice input needed for the speech to text functionality</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+<string>Allow app to get text input from your speech</string>
 </dict>
 </plist>
