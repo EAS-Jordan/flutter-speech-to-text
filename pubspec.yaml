@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   livespeechtotext: ^1.0.9
   permission_handler: ^11.3.1
+  dart_openai: ^5.1.0
 
 dev_dependencies:
   flutter_test:

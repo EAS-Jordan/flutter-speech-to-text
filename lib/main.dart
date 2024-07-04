@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:livespeechtotext/livespeechtotext.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-void main() {
+import 'package:dart_openai/dart_openai.dart';
+import 'env/env.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  OpenAI.apiKey = apiKey;
 
   runApp(const MyApp());
 }
@@ -23,8 +26,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  // Set the OpenAI API key from the .env file.
   late Livespeechtotext _livespeechtotextPlugin;
   late String _recognisedText;
+  late String _transcription;
   String? _localeDisplayName = '';
   StreamSubscription<dynamic>? onSuccessEvent;
 
@@ -60,6 +65,7 @@ class _MyAppState extends State<MyApp> {
     //         }));
 
     _recognisedText = '';
+    _transcription = '';
   }
 
   @override
@@ -71,56 +77,90 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Live Speech To Text'),
-        ),
-        body: Center(
-          child: Column(
-            children: [
-              Text(_recognisedText),
-              if (!microphoneGranted)
-                ElevatedButton(
-                  onPressed: () {
-                    binding();
-                  },
-                  child: const Text("Check Permissions"),
+        home: Scaffold(
+            appBar: AppBar(
+              title: const Text('Live Speech To Text'),
+            ),
+            body: SingleChildScrollView(
+                child: Stack(
+              children: <Widget>[
+                Center(
+                  child: Column(
+                    children: [
+                      Text(_recognisedText),
+                      Text(_transcription),
+                      if (!microphoneGranted)
+                        ElevatedButton(
+                          onPressed: () {
+                            binding();
+                          },
+                          child: const Text("Check Permissions"),
+                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton(
+                              onPressed: microphoneGranted
+                                  ? () {
+                                      print("transcribe button pressed");
+                                      try {
+                                        transcribe();
+                                      } on PlatformException {
+                                        print('error');
+                                      }
+                                    }
+                                  : null,
+                              child: Text("Press To Transcribe")),
+                          ElevatedButton(
+                              onPressed: microphoneGranted
+                                  ? () {
+                                      print("start button pressed");
+                                      try {
+                                        _livespeechtotextPlugin.start();
+                                      } on PlatformException {
+                                        print('error');
+                                      }
+                                    }
+                                  : null,
+                              child: const Text('Start')),
+                          ElevatedButton(
+                              onPressed: microphoneGranted
+                                  ? () {
+                                      print("stop button pressed");
+                                      try {
+                                        _livespeechtotextPlugin.stop();
+                                      } on PlatformException {
+                                        print('error');
+                                      }
+                                    }
+                                  : null,
+                              child: const Text('Stop')),
+                        ],
+                      ),
+                      Text("Locale: $_localeDisplayName"),
+                    ],
+                  ),
                 ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton(
-                      onPressed: microphoneGranted
-                          ? () {
-                              print("start button pressed");
-                              try {
-                                _livespeechtotextPlugin.start();
-                              } on PlatformException {
-                                print('error');
-                              }
-                            }
-                          : null,
-                      child: const Text('Start')),
-                  ElevatedButton(
-                      onPressed: microphoneGranted
-                          ? () {
-                              print("stop button pressed");
-                              try {
-                                _livespeechtotextPlugin.stop();
-                              } on PlatformException {
-                                print('error');
-                              }
-                            }
-                          : null,
-                      child: const Text('Stop')),
-                ],
-              ),
-              Text("Locale: $_localeDisplayName"),
-            ],
-          ),
-        ),
-      ),
-    );
+              ],
+            ))));
+  }
+
+  Future<OpenAIAudioModel> transcribe() async {
+    return Future.wait([]).then((_) async {
+      OpenAIAudioModel transcription =
+          await OpenAI.instance.audio.createTranscription(
+        file: File(
+            "/Users/jordanhaggett/Documents/flutter-stt/flutter_stt/lib/env/MLKDreamSpeech.mp3"),
+        model: "whisper-1",
+        // prompt: """User1: 'Hello.',
+        // User2: 'uhh Goodmorning, everyone.' """,
+        responseFormat: OpenAIAudioResponseFormat.json,
+      );
+      setState(() {
+        _transcription = transcription.text.toString();
+      });
+      return transcription;
+    });
   }
 
   Future<dynamic> binding() async {
